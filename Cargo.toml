@@ -1,0 +1,14 @@
+[package]
+name = "weekend-ray-tracer"
+description = "A ray tracer inspired by Ray Tracing In One Weekend"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+categories = ["graphics"]
+keywords = ["ray-tracing", "graphics", "computer-graphics"]
+readme = "README.md"
+repository = "https://github.com/masrtis/weekend-ray-tracer"
+
+[dependencies]
+colog = "1.3.0"
+log = "0.4.27"
