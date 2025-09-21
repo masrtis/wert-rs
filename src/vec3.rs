@@ -1,7 +1,9 @@
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Vec3 {
     pub components: [f64; 3],
 }
+
+pub type Point3 = Vec3;
 
 impl Vec3 {
     pub const fn new(x: f64, y: f64, z: f64) -> Self {
