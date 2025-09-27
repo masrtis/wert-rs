@@ -33,6 +33,12 @@ impl From<Vec3> for Color {
     }
 }
 
+impl From<Color> for Vec3 {
+    fn from(c: Color) -> Self {
+        c.0
+    }
+}
+
 impl std::fmt::Display for Color {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (red, green, blue) = self.get_rgb8();

@@ -12,26 +12,23 @@
 #![warn(clippy::exit)]
 
 mod color;
+mod hittable;
+mod hittable_collection;
+mod interval;
 mod ray;
 mod vec3;
 
 use color::Color;
+use hittable::{HitRecord, Hittable, RayIntersection, Sphere};
+use hittable_collection::HittableCollection;
 use log::info;
 use ray::Ray;
 use vec3::{Point3, Vec3};
 
-fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> bool {
-    let oc = center - *r.origin();
-    let a = r.dir().length_squared();
-    let b = -2.0 * oc.dot(*r.dir());
-    let c = oc.length_squared().mul_add(1.0, -radius.powi(2));
-    let discriminant = b * b - 4.0 * a * c;
-    discriminant >= 0.0
-}
-
-fn ray_color(r: &Ray) -> Color {
-    if hit_sphere(Point3::new(0.0, 0.0, -1.0), 0.5, r) {
-        return Color::new(1.0, 0.0, 0.0);
+fn ray_color(r: &Ray, world: &impl RayIntersection) -> Color {
+    let mut rec = HitRecord::default();
+    if world.hit(r, interval::NON_NEGATIVE, &mut rec) {
+        return 0.5 * (Color::from(rec.normal()) + Color::new(1.0, 1.0, 1.0));
     }
 
     let unit_direction = r.dir().unit_vector();
@@ -53,6 +50,15 @@ fn main() {
 
     #[allow(clippy::cast_possible_truncation)]
     let image_height = image_height_f64 as i32;
+
+    // World setup
+    let world = HittableCollection::from(
+        [
+            Hittable::from(Sphere::new(&Point3::new(0.0, 0.0, -1.0), 0.5)),
+            Hittable::from(Sphere::new(&Point3::new(0.0, -100.5, -1.0), 100.0)),
+        ]
+        .as_slice(),
+    );
 
     // Camera calculations
     let viewport_width = VIEWPORT_HEIGHT * IMAGE_WIDTH_F64 / image_height_f64;
@@ -87,7 +93,7 @@ fn main() {
                 pixel00_loc + (f64::from(x) * pixel_delta_u) + (f64::from(y) * pixel_delta_v);
             let ray_direction = pixel_center - CAMERA_CENTER;
             let r = Ray::new(CAMERA_CENTER, ray_direction);
-            let pixel_color = ray_color(&r);
+            let pixel_color = ray_color(&r, &world);
 
             println!("{pixel_color}");
         }
