@@ -1,4 +1,8 @@
-use crate::{Point3, Ray, Vec3, interval::Interval};
+use crate::{
+    interval::Interval,
+    ray::Ray,
+    vec3::{Point3, Vec3},
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct HitRecord {
