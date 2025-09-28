@@ -14,6 +14,10 @@ impl Interval {
     pub const fn surrounds(&self, x: f64) -> bool {
         self.min < x && x < self.max
     }
+
+    pub const fn clamp(&self, x: f64) -> f64 {
+        x.clamp(self.min, self.max)
+    }
 }
 
 impl Default for Interval {

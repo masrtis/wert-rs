@@ -6,6 +6,7 @@ use crate::{
     vec3::{Point3, Vec3},
 };
 use log::info;
+use rand::Rng;
 
 #[derive(Clone, Debug)]
 pub struct Camera {
@@ -13,12 +14,14 @@ pub struct Camera {
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
     pixel_delta_v: Vec3,
+    pixel_samples_scale: f64,
     image_width: i32,
     image_height: i32,
+    samples_per_pixel: i32,
 }
 
 impl Camera {
-    fn new(aspect_ratio: f64, image_width: i32) -> Self {
+    fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32) -> Self {
         const FOCAL_LENGTH: f64 = 1.0;
         const VIEWPORT_HEIGHT: f64 = 2.0;
         const CENTER: Point3 = Point3::new(0.0, 0.0, 0.0);
@@ -46,8 +49,10 @@ impl Camera {
             pixel00_loc,
             pixel_delta_u,
             pixel_delta_v,
+            pixel_samples_scale: f64::from(samples_per_pixel).recip(),
             image_width,
             image_height,
+            samples_per_pixel,
         }
     }
 
@@ -66,19 +71,34 @@ impl Camera {
             info!("Scanlines remaining: {}", self.image_height - y);
 
             for x in 0..self.image_width {
-                let pixel_center = self.pixel00_loc
-                    + (f64::from(x) * self.pixel_delta_u)
-                    + (f64::from(y) * self.pixel_delta_v);
-                let ray_direction = pixel_center - self.center;
-                let r = Ray::new(self.center, ray_direction);
-                let pixel_color = ray_color(&r, world);
+                let mut pixel_color = Color::default();
+                for _ in 0..self.samples_per_pixel {
+                    let r = self.get_ray(x, y);
+                    pixel_color += ray_color(&r, world);
+                }
 
-                println!("{pixel_color}");
+                println!("{}", self.pixel_samples_scale * pixel_color);
             }
         }
 
         info!("Image rendering complete");
     }
+
+    fn get_ray(&self, x: i32, y: i32) -> Ray {
+        let offset = sample_square();
+        let pixel_sample = self.pixel00_loc
+            + ((f64::from(x) + offset.x()) * self.pixel_delta_u)
+            + ((f64::from(y) + offset.y()) * self.pixel_delta_v);
+        let ray_origin = self.center;
+        let ray_direction = pixel_sample - ray_origin;
+
+        Ray::new(ray_origin, ray_direction)
+    }
+}
+
+fn sample_square() -> Vec3 {
+    let mut rng = rand::rng();
+    Vec3::new(rng.random::<f64>() - 0.5, rng.random::<f64>() - 0.5, 0.0)
 }
 
 fn ray_color(r: &Ray, world: &impl RayIntersection) -> Color {
@@ -92,11 +112,11 @@ fn ray_color(r: &Ray, world: &impl RayIntersection) -> Color {
     (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
 }
 
-pub struct CameraBuilder(f64, i32);
+pub struct CameraBuilder(f64, i32, i32);
 
 impl CameraBuilder {
-    pub const fn new(aspect_ratio: f64, image_width: i32) -> Self {
-        Self(aspect_ratio, image_width)
+    pub const fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32) -> Self {
+        Self(aspect_ratio, image_width, samples_per_pixel)
     }
 
     pub const fn aspect_ratio(mut self, aspect_ratio: f64) -> Self {
@@ -109,13 +129,18 @@ impl CameraBuilder {
         self
     }
 
+    pub const fn samples_per_pixel(mut self, samples_per_pixel: i32) -> Self {
+        self.2 = samples_per_pixel;
+        self
+    }
+
     pub fn build(self) -> Camera {
-        Camera::new(self.0, self.1)
+        Camera::new(self.0, self.1, self.2)
     }
 }
 
 impl Default for CameraBuilder {
     fn default() -> Self {
-        Self::new(1.0, 100)
+        Self::new(1.0, 100, 10)
     }
 }

@@ -1,4 +1,4 @@
-use crate::vec3::Vec3;
+use crate::{interval::Interval, vec3::Vec3};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Color(Vec3);
@@ -18,9 +18,10 @@ impl Color {
         let b = self.0.z();
         {
             #![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-            let red = (255.999 * r) as u8;
-            let green = (255.999 * g) as u8;
-            let blue = (255.999 * b) as u8;
+            const INTENSITY: Interval = Interval::new(0.0, 0.999);
+            let red = (256.0 * INTENSITY.clamp(r)) as u8;
+            let green = (256.0 * INTENSITY.clamp(g)) as u8;
+            let blue = (256.0 * INTENSITY.clamp(b)) as u8;
 
             (red, green, blue)
         }
