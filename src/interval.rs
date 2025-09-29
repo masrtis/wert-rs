@@ -31,7 +31,7 @@ pub const EMPTY: Interval = Interval {
     max: f64::NEG_INFINITY,
 };
 
-pub const NON_NEGATIVE: Interval = Interval {
-    min: 0.0,
+pub const ERROR_CORRECTED_NON_NEGATIVE: Interval = Interval {
+    min: 0.001,
     max: f64::INFINITY,
 };

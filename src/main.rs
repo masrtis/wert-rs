@@ -3,12 +3,6 @@
 #![warn(clippy::nursery)]
 #![warn(clippy::cargo)]
 #![allow(clippy::multiple_crate_versions)]
-#![cfg_attr(
-    not(test),
-    warn(clippy::unwrap_used),
-    warn(clippy::expect_used),
-    warn(clippy::panic)
-)]
 #![warn(clippy::exit)]
 
 mod camera;
@@ -44,6 +38,7 @@ fn main() {
         .aspect_ratio(ASPECT_RATIO)
         .image_width(IMAGE_WIDTH)
         .samples_per_pixel(100)
+        .max_depth(50)
         .build();
 
     camera.render(&world);

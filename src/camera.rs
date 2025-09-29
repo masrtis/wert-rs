@@ -3,7 +3,7 @@ use crate::{
     hittable::{HitRecord, RayIntersection},
     interval,
     ray::Ray,
-    vec3::{Point3, Vec3},
+    vec3::{Point3, Vec3, random_unit_vector},
 };
 use log::info;
 use rand::Rng;
@@ -18,10 +18,11 @@ pub struct Camera {
     image_width: i32,
     image_height: i32,
     samples_per_pixel: i32,
+    max_depth: u32,
 }
 
 impl Camera {
-    fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32) -> Self {
+    fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32, max_depth: u32) -> Self {
         const FOCAL_LENGTH: f64 = 1.0;
         const VIEWPORT_HEIGHT: f64 = 2.0;
         const CENTER: Point3 = Point3::new(0.0, 0.0, 0.0);
@@ -53,6 +54,7 @@ impl Camera {
             image_width,
             image_height,
             samples_per_pixel,
+            max_depth,
         }
     }
 
@@ -74,7 +76,7 @@ impl Camera {
                 let mut pixel_color = Color::default();
                 for _ in 0..self.samples_per_pixel {
                     let r = self.get_ray(x, y);
-                    pixel_color += ray_color(&r, world);
+                    pixel_color += ray_color(&r, self.max_depth, world);
                 }
 
                 println!("{}", self.pixel_samples_scale * pixel_color);
@@ -101,10 +103,15 @@ fn sample_square() -> Vec3 {
     Vec3::new(rng.random::<f64>() - 0.5, rng.random::<f64>() - 0.5, 0.0)
 }
 
-fn ray_color(r: &Ray, world: &impl RayIntersection) -> Color {
+fn ray_color(r: &Ray, depth: u32, world: &impl RayIntersection) -> Color {
+    if depth == 0 {
+        return Color::new(0.0, 0.0, 0.0);
+    }
+
     let mut rec = HitRecord::default();
-    if world.hit(r, interval::NON_NEGATIVE, &mut rec) {
-        return 0.5 * (Color::from(rec.normal()) + Color::new(1.0, 1.0, 1.0));
+    if world.hit(r, interval::ERROR_CORRECTED_NON_NEGATIVE, &mut rec) {
+        let direction = rec.normal() + random_unit_vector();
+        return 0.5 * ray_color(&Ray::new(rec.p(), direction), depth - 1, world);
     }
 
     let unit_direction = r.dir().unit_vector();
@@ -112,11 +119,16 @@ fn ray_color(r: &Ray, world: &impl RayIntersection) -> Color {
     (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
 }
 
-pub struct CameraBuilder(f64, i32, i32);
+pub struct CameraBuilder(f64, i32, i32, u32);
 
 impl CameraBuilder {
-    pub const fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32) -> Self {
-        Self(aspect_ratio, image_width, samples_per_pixel)
+    pub const fn new(
+        aspect_ratio: f64,
+        image_width: i32,
+        samples_per_pixel: i32,
+        max_depth: u32,
+    ) -> Self {
+        Self(aspect_ratio, image_width, samples_per_pixel, max_depth)
     }
 
     pub const fn aspect_ratio(mut self, aspect_ratio: f64) -> Self {
@@ -134,13 +146,18 @@ impl CameraBuilder {
         self
     }
 
+    pub const fn max_depth(mut self, max_depth: u32) -> Self {
+        self.3 = max_depth;
+        self
+    }
+
     pub fn build(self) -> Camera {
-        Camera::new(self.0, self.1, self.2)
+        Camera::new(self.0, self.1, self.2, self.3)
     }
 }
 
 impl Default for CameraBuilder {
     fn default() -> Self {
-        Self::new(1.0, 100, 10)
+        Self::new(1.0, 100, 10, 10)
     }
 }

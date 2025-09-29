@@ -12,10 +12,10 @@ impl Color {
 }
 
 impl Color {
-    fn get_rgb8(&self) -> RGB8 {
-        let r = self.0.x();
-        let g = self.0.y();
-        let b = self.0.z();
+    fn get_gamma_rgb8(&self) -> RGB8 {
+        let r = linear_to_gamma(self.0.x());
+        let g = linear_to_gamma(self.0.y());
+        let b = linear_to_gamma(self.0.z());
         {
             #![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
             const INTENSITY: Interval = Interval::new(0.0, 0.999);
@@ -42,7 +42,7 @@ impl From<Color> for Vec3 {
 
 impl std::fmt::Display for Color {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let (red, green, blue) = self.get_rgb8();
+        let (red, green, blue) = self.get_gamma_rgb8();
         write!(f, "{red} {green} {blue}")
     }
 }
@@ -80,5 +80,13 @@ impl std::ops::Mul<Color> for f64 {
 impl std::ops::MulAssign<f64> for Color {
     fn mul_assign(&mut self, rhs: f64) {
         self.0 *= rhs;
+    }
+}
+
+fn linear_to_gamma(linear_component: f64) -> f64 {
+    if linear_component > 0.0 {
+        linear_component.sqrt()
+    } else {
+        0.0
     }
 }

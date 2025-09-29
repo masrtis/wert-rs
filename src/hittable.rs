@@ -22,6 +22,10 @@ impl HitRecord {
         };
     }
 
+    pub const fn p(&self) -> Point3 {
+        self.p
+    }
+
     pub const fn t(&self) -> f64 {
         self.t
     }

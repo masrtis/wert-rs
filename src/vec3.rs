@@ -1,4 +1,15 @@
-#[derive(Clone, Copy, Debug, Default)]
+use rand::{
+    Rng,
+    distr::{
+        Distribution, StandardUniform, Uniform,
+        uniform::{
+            Error as DistributionError, SampleBorrow, SampleUniform, UniformFloat, UniformSampler,
+        },
+    },
+    rng,
+};
+
+#[derive(Clone, Copy, Debug, Default, PartialOrd, PartialEq)]
 pub struct Vec3 {
     pub components: [f64; 3],
 }
@@ -24,19 +35,20 @@ impl Vec3 {
         self.components[2]
     }
 
-    pub const fn dot(&self, rhs: Self) -> f64 {
-        self.x() * rhs.x() + self.y() * rhs.y() + self.z() * rhs.z()
+    pub fn dot(&self, rhs: Self) -> f64 {
+        self.x()
+            .mul_add(rhs.x(), self.y().mul_add(rhs.y(), self.z() * rhs.z()))
     }
 
-    pub const fn cross(&self, rhs: Self) -> Self {
+    pub fn cross(&self, rhs: Self) -> Self {
         Self::new(
-            self.y() * rhs.z() - self.z() * rhs.y(),
-            self.z() * rhs.x() - self.x() * rhs.z(),
-            self.x() * rhs.y() - self.y() * rhs.x(),
+            self.y().mul_add(rhs.z(), -self.z() * rhs.y()),
+            self.z().mul_add(rhs.x(), -self.x() * rhs.z()),
+            self.x().mul_add(rhs.y(), -self.y() * rhs.x()),
         )
     }
 
-    pub const fn length_squared(&self) -> f64 {
+    pub fn length_squared(&self) -> f64 {
         self.dot(*self)
     }
 
@@ -138,5 +150,74 @@ impl std::ops::DivAssign<f64> for Vec3 {
 impl std::fmt::Display for Vec3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {} {}", self.x(), self.y(), self.z())
+    }
+}
+
+impl Distribution<Vec3> for StandardUniform {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Vec3 {
+        let distribution = Uniform::new(0.0, 1.0).unwrap();
+
+        Vec3::new(
+            distribution.sample(rng),
+            distribution.sample(rng),
+            distribution.sample(rng),
+        )
+    }
+}
+
+pub struct UniformVec3Sampler {
+    x: UniformFloat<f64>,
+    y: UniformFloat<f64>,
+    z: UniformFloat<f64>,
+}
+
+impl UniformSampler for UniformVec3Sampler {
+    type X = Vec3;
+
+    fn new<B1: SampleBorrow<Self::X> + Sized, B2: SampleBorrow<Self::X> + Sized>(
+        low: B1,
+        high: B2,
+    ) -> Result<Self, DistributionError> {
+        let low = low.borrow();
+        let high = high.borrow();
+
+        Ok(Self {
+            x: UniformFloat::new(low.x(), high.x())?,
+            y: UniformFloat::new(low.y(), high.y())?,
+            z: UniformFloat::new(low.z(), high.z())?,
+        })
+    }
+
+    fn new_inclusive<B1: SampleBorrow<Self::X> + Sized, B2: SampleBorrow<Self::X> + Sized>(
+        low: B1,
+        high: B2,
+    ) -> Result<Self, DistributionError> {
+        let low = low.borrow();
+        let high = high.borrow();
+
+        Ok(Self {
+            x: UniformFloat::new_inclusive(low.x(), high.x())?,
+            y: UniformFloat::new_inclusive(low.y(), high.y())?,
+            z: UniformFloat::new_inclusive(low.z(), high.z())?,
+        })
+    }
+
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {
+        Vec3::new(self.x.sample(rng), self.y.sample(rng), self.z.sample(rng))
+    }
+}
+
+impl SampleUniform for Vec3 {
+    type Sampler = UniformVec3Sampler;
+}
+
+pub fn random_unit_vector() -> Vec3 {
+    let mut rng = rng();
+    loop {
+        let p = rng.random_range(Vec3::new(-1.0, -1.0, -1.0)..Vec3::new(1.0, 1.0, 1.0));
+        let length_sq = p.length_squared();
+        if 1.0e-160 < length_sq && length_sq <= 1.0 {
+            return p / length_sq.sqrt();
+        }
     }
 }
