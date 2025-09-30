@@ -61,6 +61,14 @@ impl std::ops::AddAssign for Color {
     }
 }
 
+impl std::ops::Mul<Self> for Color {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from(self.0 * rhs.0)
+    }
+}
+
 impl std::ops::Mul<f64> for Color {
     type Output = Self;
 

@@ -10,13 +10,17 @@ mod color;
 mod hittable;
 mod hittable_collection;
 mod interval;
+mod material;
 mod ray;
 mod vec3;
 
 fn main() {
     use camera::CameraBuilder;
+    use color::Color;
     use hittable::{Hittable, Sphere};
     use hittable_collection::HittableCollection;
+    use material::{Lambertian, Material, Metal};
+    use std::sync::Arc;
     use vec3::Point3;
 
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
@@ -26,10 +30,37 @@ fn main() {
     colog::init();
 
     // World setup
+    let material_ground = Arc::new(Material::Lambertian(Lambertian::from(Color::new(
+        0.8, 0.8, 0.0,
+    ))));
+    let material_center = Arc::new(Material::Lambertian(Lambertian::from(Color::new(
+        0.1, 0.2, 0.5,
+    ))));
+    let material_left = Arc::new(Material::Metal(Metal::new(Color::new(0.8, 0.8, 0.8), 0.3)));
+    let material_right = Arc::new(Material::Metal(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0)));
+
     let world = HittableCollection::from(
         [
-            Hittable::from(Sphere::new(&Point3::new(0.0, 0.0, -1.0), 0.5)),
-            Hittable::from(Sphere::new(&Point3::new(0.0, -100.5, -1.0), 100.0)),
+            Hittable::from(Sphere::new(
+                &Point3::new(0.0, -100.5, -1.0),
+                100.0,
+                &material_ground,
+            )),
+            Hittable::from(Sphere::new(
+                &Point3::new(0.0, 0.0, -1.2),
+                0.5,
+                &material_center,
+            )),
+            Hittable::from(Sphere::new(
+                &Point3::new(-1.0, 0.0, -1.0),
+                0.5,
+                &material_left,
+            )),
+            Hittable::from(Sphere::new(
+                &Point3::new(1.0, 0.0, -1.0),
+                0.5,
+                &material_right,
+            )),
         ]
         .as_slice(),
     );

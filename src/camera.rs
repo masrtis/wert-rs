@@ -2,8 +2,9 @@ use crate::{
     color::Color,
     hittable::{HitRecord, RayIntersection},
     interval,
+    material::Scatter,
     ray::Ray,
-    vec3::{Point3, Vec3, random_unit_vector},
+    vec3::{Point3, Vec3},
 };
 use log::info;
 use rand::Rng;
@@ -110,8 +111,17 @@ fn ray_color(r: &Ray, depth: u32, world: &impl RayIntersection) -> Color {
 
     let mut rec = HitRecord::default();
     if world.hit(r, interval::ERROR_CORRECTED_NON_NEGATIVE, &mut rec) {
-        let direction = rec.normal() + random_unit_vector();
-        return 0.5 * ray_color(&Ray::new(rec.p(), direction), depth - 1, world);
+        let mut scattered = Ray::default();
+        let mut attuentation = Color::default();
+
+        if rec
+            .material()
+            .scatter(r, &rec, &mut attuentation, &mut scattered)
+        {
+            return attuentation * ray_color(&scattered, depth - 1, world);
+        }
+
+        return Color::default();
     }
 
     let unit_direction = r.dir().unit_vector();

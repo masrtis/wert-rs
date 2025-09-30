@@ -1,13 +1,16 @@
 use crate::{
     interval::Interval,
+    material::Material,
     ray::Ray,
     vec3::{Point3, Vec3},
 };
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]
 pub struct HitRecord {
     p: Point3,
     normal: Vec3,
+    mat: Arc<Material>,
     t: f64,
     front_face: bool,
 }
@@ -33,6 +36,10 @@ impl HitRecord {
     pub const fn normal(&self) -> Vec3 {
         self.normal
     }
+
+    pub const fn material(&self) -> &Arc<Material> {
+        &self.mat
+    }
 }
 
 pub trait RayIntersection {
@@ -43,13 +50,15 @@ pub trait RayIntersection {
 pub struct Sphere {
     center: Point3,
     radius: f64,
+    mat: Arc<Material>,
 }
 
 impl Sphere {
-    pub const fn new(center: &Point3, radius: f64) -> Self {
+    pub fn new(center: &Point3, radius: f64, mat: &Arc<Material>) -> Self {
         Self {
             center: *center,
             radius: radius.max(0.0),
+            mat: mat.clone(),
         }
     }
 }
@@ -80,6 +89,7 @@ impl RayIntersection for Sphere {
         hit_record.p = r.at(root);
         let outward_normal = (hit_record.p - self.center) / self.radius;
         hit_record.set_face_normal(r, outward_normal);
+        hit_record.mat = self.mat.clone();
 
         true
     }

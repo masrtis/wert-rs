@@ -59,6 +59,15 @@ impl Vec3 {
     pub fn unit_vector(&self) -> Self {
         *self / self.length()
     }
+
+    pub const fn near_zero(&self) -> bool {
+        const S: f64 = 1.0e-8;
+        self.components[0].abs() < S && self.components[1].abs() < S && self.components[2].abs() < S
+    }
+
+    pub fn reflect(&self, n: &Self) -> Self {
+        *self - 2.0 * self.dot(*n) * *n
+    }
 }
 
 impl std::ops::Index<usize> for Vec3 {
@@ -104,6 +113,14 @@ impl std::ops::Sub for Vec3 {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
+    }
+}
+
+impl std::ops::Mul<Self> for Vec3 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::new(self.x() * rhs.x(), self.y() * rhs.y(), self.z() * rhs.z())
     }
 }
 
