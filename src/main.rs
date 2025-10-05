@@ -22,7 +22,7 @@ fn main() {
     use hittable_collection::HittableCollection;
     use material::{Dielectric, Lambertian, Material, Metal};
     use std::sync::Arc;
-    use vec3::Point3;
+    use vec3::{Point3, Vec3};
 
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: i32 = 400;
@@ -73,6 +73,10 @@ fn main() {
         .image_width(IMAGE_WIDTH)
         .samples_per_pixel(100)
         .max_depth(50)
+        .vertical_fov(20.0)
+        .look_from(&Point3::new(-2.0, 2.0, 1.0))
+        .look_at(&Point3::new(0.0, 0.0, -1.0))
+        .v_up(&Vec3::new(0.0, 1.0, 0.0))
         .build();
 
     camera.render(&world);
