@@ -35,12 +35,12 @@ impl Vec3 {
         self.components[2]
     }
 
-    pub fn dot(&self, rhs: Self) -> f64 {
+    pub fn dot(&self, rhs: &Self) -> f64 {
         self.x()
             .mul_add(rhs.x(), self.y().mul_add(rhs.y(), self.z() * rhs.z()))
     }
 
-    pub fn cross(&self, rhs: Self) -> Self {
+    pub fn cross(&self, rhs: &Self) -> Self {
         Self::new(
             self.y().mul_add(rhs.z(), -self.z() * rhs.y()),
             self.z().mul_add(rhs.x(), -self.x() * rhs.z()),
@@ -49,7 +49,7 @@ impl Vec3 {
     }
 
     pub fn length_squared(&self) -> f64 {
-        self.dot(*self)
+        self.dot(self)
     }
 
     pub fn length(&self) -> f64 {
@@ -66,7 +66,14 @@ impl Vec3 {
     }
 
     pub fn reflect(&self, n: &Self) -> Self {
-        *self - 2.0 * self.dot(*n) * *n
+        *self - 2.0 * self.dot(n) * n
+    }
+
+    pub fn refract(&self, n: &Self, refraction_index_ratio: f64) -> Self {
+        let cos_theta = ((-self).dot(n)).min(1.0);
+        let refract_perp = refraction_index_ratio * (self + cos_theta * n);
+        let refract_parallel = -(1.0 - refract_perp.length_squared()).abs().sqrt() * n;
+        refract_perp + refract_parallel
     }
 }
 
@@ -92,16 +99,54 @@ impl std::ops::Neg for Vec3 {
     }
 }
 
+impl std::ops::Neg for &Vec3 {
+    type Output = Vec3;
+
+    fn neg(self) -> Self::Output {
+        -*self
+    }
+}
+
 impl std::ops::Add for Vec3 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self::new(self.x() + rhs.x(), self.y() + rhs.y(), self.z() + rhs.z())
+        Self::Output::new(self.x() + rhs.x(), self.y() + rhs.y(), self.z() + rhs.z())
+    }
+}
+
+impl std::ops::Add<&Self> for Vec3 {
+    type Output = Self;
+
+    fn add(self, rhs: &Self) -> Self::Output {
+        self + *rhs
+    }
+}
+
+impl std::ops::Add<Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: Vec3) -> Self::Output {
+        *self + rhs
+    }
+}
+
+impl std::ops::Add for &Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        *self + *rhs
     }
 }
 
 impl std::ops::AddAssign for Vec3 {
     fn add_assign(&mut self, rhs: Self) {
+        *self += &rhs;
+    }
+}
+
+impl std::ops::AddAssign<&Self> for Vec3 {
+    fn add_assign(&mut self, rhs: &Self) {
         self.components[0] += rhs.x();
         self.components[1] += rhs.y();
         self.components[2] += rhs.z();
@@ -112,15 +157,91 @@ impl std::ops::Sub for Vec3 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
+        Self::Output::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
     }
 }
 
-impl std::ops::Mul<Self> for Vec3 {
+impl std::ops::Sub<&Self> for Vec3 {
+    type Output = Self;
+
+    fn sub(self, rhs: &Self) -> Self::Output {
+        self - *rhs
+    }
+}
+
+impl std::ops::Sub<Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, rhs: Vec3) -> Self::Output {
+        *self - rhs
+    }
+}
+
+impl std::ops::Sub for &Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        *self - *rhs
+    }
+}
+
+impl std::ops::SubAssign for Vec3 {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self -= &rhs;
+    }
+}
+
+impl std::ops::SubAssign<&Self> for Vec3 {
+    fn sub_assign(&mut self, rhs: &Self) {
+        self.components[0] -= rhs.components[0];
+        self.components[1] -= rhs.components[1];
+        self.components[2] -= rhs.components[2];
+    }
+}
+
+impl std::ops::Mul for Vec3 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Self::new(self.x() * rhs.x(), self.y() * rhs.y(), self.z() * rhs.z())
+        Self::Output::new(self.x() * rhs.x(), self.y() * rhs.y(), self.z() * rhs.z())
+    }
+}
+
+impl std::ops::Mul<&Self> for Vec3 {
+    type Output = Self;
+
+    fn mul(self, rhs: &Self) -> Self::Output {
+        self * *rhs
+    }
+}
+
+impl std::ops::Mul<Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        *self * rhs
+    }
+}
+
+impl std::ops::Mul for &Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        *self * *rhs
+    }
+}
+
+impl std::ops::MulAssign for Vec3 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self *= &rhs;
+    }
+}
+
+impl std::ops::MulAssign<&Self> for Vec3 {
+    fn mul_assign(&mut self, rhs: &Self) {
+        self.components[0] *= rhs.components[0];
+        self.components[1] *= rhs.components[1];
+        self.components[2] *= rhs.components[2];
     }
 }
 
@@ -128,7 +249,31 @@ impl std::ops::Mul<f64> for Vec3 {
     type Output = Self;
 
     fn mul(self, rhs: f64) -> Self::Output {
-        Self::new(self.x() * rhs, self.y() * rhs, self.z() * rhs)
+        Self::Output::new(self.x() * rhs, self.y() * rhs, self.z() * rhs)
+    }
+}
+
+impl std::ops::Mul<&f64> for Vec3 {
+    type Output = Self;
+
+    fn mul(self, rhs: &f64) -> Self::Output {
+        self * *rhs
+    }
+}
+
+impl std::ops::Mul<f64> for &Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        *self * rhs
+    }
+}
+
+impl std::ops::Mul<&f64> for &Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: &f64) -> Self::Output {
+        *self * *rhs
     }
 }
 
@@ -136,6 +281,30 @@ impl std::ops::Mul<Vec3> for f64 {
     type Output = Vec3;
 
     fn mul(self, rhs: Vec3) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl std::ops::Mul<&Vec3> for f64 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: &Vec3) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl std::ops::Mul<Vec3> for &f64 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl std::ops::Mul<&Vec3> for &f64 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: &Vec3) -> Self::Output {
         rhs * self
     }
 }
@@ -148,19 +317,55 @@ impl std::ops::MulAssign<f64> for Vec3 {
     }
 }
 
+impl std::ops::MulAssign<&f64> for Vec3 {
+    fn mul_assign(&mut self, rhs: &f64) {
+        *self *= *rhs;
+    }
+}
+
 impl std::ops::Div<f64> for Vec3 {
     type Output = Self;
 
+    #[expect(
+        clippy::suspicious_arithmetic_impl,
+        reason = "Division is multiplication by the reciprocal"
+    )]
     fn div(self, rhs: f64) -> Self::Output {
-        Self::new(self.x() / rhs, self.y() / rhs, self.z() / rhs)
+        rhs.recip() * self
+    }
+}
+
+impl std::ops::Div<&f64> for Vec3 {
+    type Output = Self;
+
+    fn div(self, rhs: &f64) -> Self::Output {
+        self / *rhs
+    }
+}
+
+impl std::ops::Div<f64> for &Vec3 {
+    type Output = Vec3;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        *self / rhs
+    }
+}
+
+impl std::ops::Div<&f64> for &Vec3 {
+    type Output = Vec3;
+
+    fn div(self, rhs: &f64) -> Self::Output {
+        *self / *rhs
     }
 }
 
 impl std::ops::DivAssign<f64> for Vec3 {
+    #[expect(
+        clippy::suspicious_op_assign_impl,
+        reason = "Division is multiplication by the reciprocal"
+    )]
     fn div_assign(&mut self, rhs: f64) {
-        self.components[0] /= rhs;
-        self.components[1] /= rhs;
-        self.components[2] /= rhs;
+        *self *= rhs.recip();
     }
 }
 

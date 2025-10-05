@@ -4,6 +4,7 @@ use crate::{
     interval,
     material::Scatter,
     ray::Ray,
+    scope_timer::ScopeTimer,
     vec3::{Point3, Vec3},
 };
 use log::info;
@@ -27,6 +28,8 @@ impl Camera {
         const FOCAL_LENGTH: f64 = 1.0;
         const VIEWPORT_HEIGHT: f64 = 2.0;
         const CENTER: Point3 = Point3::new(0.0, 0.0, 0.0);
+
+        let _timer = ScopeTimer::new("Camera::new");
 
         let image_width_f64 = f64::from(image_width);
 
@@ -60,6 +63,8 @@ impl Camera {
     }
 
     pub fn render(&self, world: &impl RayIntersection) {
+        let _timer = ScopeTimer::new("Camera::render");
+
         // Output PPM image to standard output
 
         // PPM header
@@ -95,7 +100,7 @@ impl Camera {
         let ray_origin = self.center;
         let ray_direction = pixel_sample - ray_origin;
 
-        Ray::new(ray_origin, ray_direction)
+        Ray::new(&ray_origin, ray_direction)
     }
 }
 

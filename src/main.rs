@@ -12,6 +12,7 @@ mod hittable_collection;
 mod interval;
 mod material;
 mod ray;
+mod scope_timer;
 mod vec3;
 
 fn main() {
@@ -19,7 +20,7 @@ fn main() {
     use color::Color;
     use hittable::{Hittable, Sphere};
     use hittable_collection::HittableCollection;
-    use material::{Lambertian, Material, Metal};
+    use material::{Dielectric, Lambertian, Material, Metal};
     use std::sync::Arc;
     use vec3::Point3;
 
@@ -30,14 +31,11 @@ fn main() {
     colog::init();
 
     // World setup
-    let material_ground = Arc::new(Material::Lambertian(Lambertian::from(Color::new(
-        0.8, 0.8, 0.0,
-    ))));
-    let material_center = Arc::new(Material::Lambertian(Lambertian::from(Color::new(
-        0.1, 0.2, 0.5,
-    ))));
-    let material_left = Arc::new(Material::Metal(Metal::new(Color::new(0.8, 0.8, 0.8), 0.3)));
-    let material_right = Arc::new(Material::Metal(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0)));
+    let material_ground = Arc::new(Material::from(Lambertian::from(Color::new(0.8, 0.8, 0.0))));
+    let material_center = Arc::new(Material::from(Lambertian::from(Color::new(0.1, 0.2, 0.5))));
+    let material_left = Arc::new(Material::from(Dielectric::from(1.50)));
+    let material_bubble = Arc::new(Material::from(Dielectric::from(1.50_f64.recip())));
+    let material_right = Arc::new(Material::from(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0)));
 
     let world = HittableCollection::from(
         [
@@ -55,6 +53,11 @@ fn main() {
                 &Point3::new(-1.0, 0.0, -1.0),
                 0.5,
                 &material_left,
+            )),
+            Hittable::from(Sphere::new(
+                &Point3::new(-1.0, 0.0, -1.0),
+                0.4,
+                &material_bubble,
             )),
             Hittable::from(Sphere::new(
                 &Point3::new(1.0, 0.0, -1.0),
