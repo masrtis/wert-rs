@@ -77,6 +77,8 @@ fn main() {
         .look_from(&Point3::new(-2.0, 2.0, 1.0))
         .look_at(&Point3::new(0.0, 0.0, -1.0))
         .v_up(&Vec3::new(0.0, 1.0, 0.0))
+        .defocus_angle(10.0)
+        .focus_distance(3.4)
         .build();
 
     camera.render(&world);

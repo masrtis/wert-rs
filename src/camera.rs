@@ -5,7 +5,7 @@ use crate::{
     material::Scatter,
     ray::Ray,
     scope_timer::ScopeTimer,
-    vec3::{Point3, Vec3},
+    vec3::{Point3, Vec3, random_in_unit_disk},
 };
 use log::info;
 use rand::Rng;
@@ -45,7 +45,10 @@ pub struct Camera {
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
     pixel_delta_v: Vec3,
+    defocus_disk_u: Vec3,
+    defocus_disk_v: Vec3,
     pixel_samples_scale: f64,
+    defocus_angle: f64,
     image_width: i32,
     image_height: i32,
     samples_per_pixel: i32,
@@ -59,6 +62,8 @@ struct NewCameraParameters {
     pub v_up: Vec3,
     pub aspect_ratio: f64,
     pub vertical_fov: f64,
+    pub defocus_angle: f64,
+    pub focus_distance: f64,
     pub image_width: i32,
     pub samples_per_pixel: i32,
     pub max_depth: u32,
@@ -77,10 +82,9 @@ impl Camera {
         let image_height = image_height_f64 as i32;
 
         // Camera calculations
-        let focal_length = (params.look_from - params.look_at).length();
         let theta = params.vertical_fov.to_radians();
         let h = (0.5 * theta).tan();
-        let viewport_height = 2.0 * h * focal_length;
+        let viewport_height = 2.0 * h * params.focus_distance;
         let viewport_width = viewport_height * image_width_f64 / image_height_f64;
         let basis = Basis::new(&params.look_from, &params.look_at, &params.v_up);
         let viewport_u = viewport_width * basis.u();
@@ -89,8 +93,10 @@ impl Camera {
         let pixel_delta_v = viewport_v / image_height_f64;
         let center = params.look_from;
         let viewport_upper_left =
-            center - (focal_length * basis.w()) - 0.5 * viewport_u - 0.5 * viewport_v;
+            center - (params.focus_distance * basis.w()) - 0.5 * viewport_u - 0.5 * viewport_v;
         let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+        let defocus_radius =
+            params.focus_distance * (0.5 * params.defocus_angle).to_radians().tan();
 
         Self {
             center,
@@ -102,6 +108,9 @@ impl Camera {
             image_height,
             samples_per_pixel: params.samples_per_pixel,
             max_depth: params.max_depth,
+            defocus_angle: params.defocus_angle,
+            defocus_disk_u: defocus_radius * basis.u(),
+            defocus_disk_v: defocus_radius * basis.v(),
         }
     }
 
@@ -140,10 +149,19 @@ impl Camera {
         let pixel_sample = self.pixel00_loc
             + ((f64::from(x) + offset.x()) * self.pixel_delta_u)
             + ((f64::from(y) + offset.y()) * self.pixel_delta_v);
-        let ray_origin = self.center;
+        let ray_origin = if self.defocus_angle <= 0.0 {
+            self.center
+        } else {
+            self.defocus_disk_sample()
+        };
         let ray_direction = pixel_sample - ray_origin;
 
         Ray::new(&ray_origin, ray_direction)
+    }
+
+    fn defocus_disk_sample(&self) -> Point3 {
+        let p = random_in_unit_disk();
+        self.center + (p[0] * self.defocus_disk_u) + (p[1] * self.defocus_disk_v)
     }
 }
 
@@ -224,6 +242,16 @@ impl CameraBuilder {
         self
     }
 
+    pub const fn defocus_angle(mut self, defocus_angle: f64) -> Self {
+        self.0.defocus_angle = defocus_angle;
+        self
+    }
+
+    pub const fn focus_distance(mut self, focus_distance: f64) -> Self {
+        self.0.focus_distance = focus_distance;
+        self
+    }
+
     pub fn build(self) -> Camera {
         Camera::new(&self.0)
     }
@@ -240,6 +268,8 @@ impl Default for CameraBuilder {
             look_from: Point3::default(),
             look_at: Point3::new(0.0, 0.0, -1.0),
             v_up: Vec3::new(0.0, 1.0, 0.0),
+            defocus_angle: 0.0,
+            focus_distance: 10.0,
         })
     }
 }
