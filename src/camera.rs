@@ -1,6 +1,7 @@
 use crate::{
     color::Color,
     hittable::{HitRecord, RayIntersection},
+    hittable_collection::HittableCollection,
     interval,
     material::Scatter,
     ray::Ray,
@@ -9,6 +10,15 @@ use crate::{
 };
 use log::info;
 use rand::Rng;
+use rayon::prelude::*;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    thread,
+    time::Duration,
+};
 
 #[derive(Clone, Debug)]
 pub struct Basis {
@@ -114,7 +124,7 @@ impl Camera {
         }
     }
 
-    pub fn render(&self, world: &impl RayIntersection) {
+    pub fn render(&self, world: &HittableCollection) {
         let _timer = ScopeTimer::new("Camera::render");
 
         // Output PPM image to standard output
@@ -127,21 +137,48 @@ impl Camera {
         println!("{} {}", self.image_width, self.image_height);
         println!("255");
 
-        for y in 0..self.image_height {
-            info!("Scanlines remaining: {}", self.image_height - y);
+        let total_pixels = usize::try_from(self.image_height * self.image_width).unwrap();
+        let completed_pixel_count = Arc::new(AtomicUsize::new(0));
+        let completed_clone = Arc::clone(&completed_pixel_count);
 
-            for x in 0..self.image_width {
-                let mut pixel_color = Color::default();
-                for _ in 0..self.samples_per_pixel {
-                    let r = self.get_ray(x, y);
-                    pixel_color += ray_color(&r, self.max_depth, world);
-                }
+        let monitor_handle = thread::spawn(move || monitor_loop(&completed_clone, total_pixels));
 
-                println!("{}", self.pixel_samples_scale * pixel_color);
-            }
+        let pixels = (0..total_pixels)
+            .into_par_iter()
+            .map(|i| self.get_pixel_color(i, &completed_pixel_count, world))
+            .collect::<Vec<_>>();
+
+        monitor_handle.join().unwrap();
+
+        for pixel in pixels {
+            println!("{pixel}");
         }
 
         info!("Image rendering complete");
+    }
+
+    fn get_pixel_color(
+        &self,
+        pixel_index: usize,
+        completed_pixel_count: &Arc<AtomicUsize>,
+        world: &HittableCollection,
+    ) -> Color {
+        let (y, x) = (
+            pixel_index / usize::try_from(self.image_width).unwrap(),
+            pixel_index % usize::try_from(self.image_width).unwrap(),
+        );
+
+        let pixel_color: Color = (0..self.samples_per_pixel)
+            .into_par_iter()
+            .fold(Color::default, |color, _| {
+                let r = self.get_ray(i32::try_from(x).unwrap(), i32::try_from(y).unwrap());
+                color + ray_color(&r, self.max_depth, world)
+            })
+            .reduce(Color::default, |sum, c| sum + c);
+
+        completed_pixel_count.fetch_add(1, Ordering::Relaxed);
+
+        self.pixel_samples_scale * pixel_color
     }
 
     fn get_ray(&self, x: i32, y: i32) -> Ray {
@@ -162,6 +199,17 @@ impl Camera {
     fn defocus_disk_sample(&self) -> Point3 {
         let p = random_in_unit_disk();
         self.center + (p[0] * self.defocus_disk_u) + (p[1] * self.defocus_disk_v)
+    }
+}
+
+fn monitor_loop(completed_pixel_count: &Arc<AtomicUsize>, total_pixels: usize) {
+    loop {
+        let current = completed_pixel_count.load(Ordering::Relaxed);
+        if current >= total_pixels {
+            break;
+        }
+        info!("Pixels remaining: {}", total_pixels - current);
+        thread::sleep(Duration::from_millis(500));
     }
 }
 
