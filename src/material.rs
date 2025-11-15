@@ -33,7 +33,7 @@ impl From<Color> for Lambertian {
 impl Scatter for Lambertian {
     fn scatter(
         &self,
-        _r_in: &Ray,
+        r_in: &Ray,
         rec: &HitRecord,
         attenuation: &mut Color,
         scattered: &mut Ray,
@@ -44,7 +44,7 @@ impl Scatter for Lambertian {
             scatter_direction = *rec.normal();
         }
 
-        *scattered = Ray::new(rec.p(), scatter_direction);
+        *scattered = Ray::with_time(rec.p(), &scatter_direction, r_in.time());
         *attenuation = self.albedo;
         true
     }
@@ -75,7 +75,7 @@ impl Scatter for Metal {
     ) -> bool {
         let reflected = r_in.dir().reflect(rec.normal());
         let fuzzed = reflected.unit_vector() + (self.fuzz * random_unit_vector());
-        *scattered = Ray::new(rec.p(), fuzzed);
+        *scattered = Ray::with_time(rec.p(), &fuzzed, r_in.time());
         *attenuation = self.albedo;
         scattered.dir().dot(rec.normal()) > 0.0
     }
@@ -126,7 +126,7 @@ impl Scatter for Dielectric {
             };
 
         *attenuation = Color::new(1.0, 1.0, 1.0);
-        *scattered = Ray::new(rec.p(), refracted);
+        *scattered = Ray::with_time(rec.p(), &refracted, r_in.time());
         true
     }
 }

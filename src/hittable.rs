@@ -54,24 +54,43 @@ pub trait RayIntersection {
 
 #[derive(Clone, Debug)]
 pub struct Sphere {
-    center: Point3,
+    center: Ray,
     radius: f64,
     mat: Arc<Material>,
 }
 
 impl Sphere {
-    pub fn new(center: &Point3, radius: f64, mat: &Arc<Material>) -> Self {
+    pub fn with_center_and_direction(
+        center: &Point3,
+        dir: &Vec3,
+        radius: f64,
+        mat: &Arc<Material>,
+    ) -> Self {
         Self {
-            center: *center,
+            center: Ray::new(center, dir),
             radius: radius.max(0.0),
             mat: mat.clone(),
         }
+    }
+
+    pub fn with_motion(
+        center_1: &Point3,
+        center_2: &Point3,
+        radius: f64,
+        mat: &Arc<Material>,
+    ) -> Self {
+        Self::with_center_and_direction(center_1, &(center_2 - center_1), radius, mat)
+    }
+
+    pub fn new(center: &Point3, radius: f64, mat: &Arc<Material>) -> Self {
+        Self::with_center_and_direction(center, &Vec3::default(), radius, mat)
     }
 }
 
 impl RayIntersection for Sphere {
     fn hit(&self, r: &Ray, ray_t: Interval, hit_record: &mut HitRecord) -> bool {
-        let oc = self.center - *r.origin();
+        let current_center = self.center.at(r.time());
+        let oc = current_center - *r.origin();
         let a = r.dir().length_squared();
         let h = oc.dot(r.dir());
         let c = self.radius.mul_add(-self.radius, oc.length_squared());
@@ -93,7 +112,7 @@ impl RayIntersection for Sphere {
 
         hit_record.t = root;
         hit_record.p = r.at(root);
-        let outward_normal = (hit_record.p - self.center) / self.radius;
+        let outward_normal = (hit_record.p - current_center) / self.radius;
         hit_record.set_face_normal(r, &outward_normal);
         hit_record.mat = self.mat.clone();
 

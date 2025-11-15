@@ -61,14 +61,16 @@ fn main() {
             );
 
             if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
-                let sphere_material = match choose_mat {
+                let sphere = match choose_mat {
                     ..0.8 => {
                         let albedo = Color::new(
                             rng.random::<f64>() * rng.random::<f64>(),
                             rng.random::<f64>() * rng.random::<f64>(),
                             rng.random::<f64>() * rng.random::<f64>(),
                         );
-                        Arc::new(Material::from(Lambertian::new(albedo)))
+                        let material = Arc::new(Material::from(Lambertian::new(albedo)));
+                        let center2 = center + Vec3::new(0.0, rng.random_range(0.0..0.5), 0.0);
+                        Sphere::with_motion(&center, &center2, 0.2, &material)
                     }
                     0.8..0.95 => {
                         let albedo = Color::new(
@@ -77,12 +79,16 @@ fn main() {
                             rng.random_range(0.5..1.0),
                         );
                         let fuzz = rng.random::<f64>();
-                        Arc::new(Material::from(Metal::new(albedo, fuzz)))
+                        let material = Arc::new(Material::from(Metal::new(albedo, fuzz)));
+                        Sphere::new(&center, 0.2, &material)
                     }
-                    _ => Arc::new(Material::from(Dielectric::new(1.5))),
+                    _ => {
+                        let material = Arc::new(Material::from(Dielectric::new(1.5)));
+                        Sphere::new(&center, 0.2, &material)
+                    }
                 };
 
-                hittables.push(Hittable::from(Sphere::new(&center, 0.2, &sphere_material)));
+                hittables.push(Hittable::from(sphere));
             }
         }
     }
