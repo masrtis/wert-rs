@@ -1,11 +1,12 @@
 use crate::{
+    aabb::AxisAlignedBoundingBox,
     interval::Interval,
     material::Material,
     ray::Ray,
     vec3::{Point3, Vec3},
 };
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 #[derive(Clone, Debug, Default)]
 pub struct HitRecord {
@@ -48,8 +49,9 @@ impl HitRecord {
 }
 
 #[enum_dispatch(Hittable)]
-pub trait RayIntersection {
+pub trait RayIntersection: Debug + Send + Sync {
     fn hit(&self, r: &Ray, ray_t: Interval, hit_record: &mut HitRecord) -> bool;
+    fn bounding_box(&self) -> AxisAlignedBoundingBox;
 }
 
 #[derive(Clone, Debug)]
@@ -57,33 +59,58 @@ pub struct Sphere {
     center: Ray,
     radius: f64,
     mat: Arc<Material>,
+    bbox: AxisAlignedBoundingBox,
 }
 
 impl Sphere {
-    pub fn with_center_and_direction(
+    fn with_center_and_direction(
         center: &Point3,
         dir: &Vec3,
         radius: f64,
         mat: &Arc<Material>,
+        bbox: AxisAlignedBoundingBox,
     ) -> Self {
         Self {
             center: Ray::new(center, dir),
-            radius: radius.max(0.0),
+            radius,
             mat: mat.clone(),
+            bbox,
         }
     }
 
     pub fn with_motion(
         center_1: &Point3,
         center_2: &Point3,
-        radius: f64,
+        mut radius: f64,
         mat: &Arc<Material>,
     ) -> Self {
-        Self::with_center_and_direction(center_1, &(center_2 - center_1), radius, mat)
+        radius = radius.max(0.0);
+        let radius_vec = Vec3::new(radius, radius, radius);
+
+        let box1 =
+            AxisAlignedBoundingBox::from_points(&(center_1 - radius_vec), &(center_1 + radius_vec));
+        let box2 =
+            AxisAlignedBoundingBox::from_points(&(center_2 - radius_vec), &(center_2 + radius_vec));
+        Self::with_center_and_direction(
+            center_1,
+            &(center_2 - center_1),
+            radius,
+            mat,
+            AxisAlignedBoundingBox::merge_boxes(&box1, &box2),
+        )
     }
 
-    pub fn new(center: &Point3, radius: f64, mat: &Arc<Material>) -> Self {
-        Self::with_center_and_direction(center, &Vec3::default(), radius, mat)
+    pub fn new(center: &Point3, mut radius: f64, mat: &Arc<Material>) -> Self {
+        radius = radius.max(0.0);
+        let radius_vec = Vec3::new(radius, radius, radius);
+
+        Self::with_center_and_direction(
+            center,
+            &Vec3::default(),
+            radius,
+            mat,
+            AxisAlignedBoundingBox::from_points(&(center - radius_vec), &(center + radius_vec)),
+        )
     }
 }
 
@@ -117,6 +144,10 @@ impl RayIntersection for Sphere {
         hit_record.mat = self.mat.clone();
 
         true
+    }
+
+    fn bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.bbox
     }
 }
 

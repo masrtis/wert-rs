@@ -5,6 +5,8 @@
 #![allow(clippy::multiple_crate_versions)]
 #![warn(clippy::exit)]
 
+mod aabb;
+mod bvh_node;
 mod camera;
 mod color;
 mod hittable;
@@ -15,16 +17,18 @@ mod ray;
 mod scope_timer;
 mod vec3;
 
-fn main() {
-    use camera::CameraBuilder;
-    use color::Color;
-    use hittable::{Hittable, Sphere};
-    use hittable_collection::HittableCollection;
-    use material::{Dielectric, Lambertian, Material, Metal};
-    use rand::{RngExt, rng};
-    use std::sync::Arc;
-    use vec3::{Point3, Vec3};
+use camera::CameraBuilder;
+use color::Color;
+use hittable::{Hittable, RayIntersection, Sphere};
+use hittable_collection::HittableCollection;
+use material::{Dielectric, Lambertian, Material, Metal};
+use rand::{RngExt, rng};
+use std::sync::Arc;
+use vec3::{Point3, Vec3};
 
+use crate::bvh_node::BvhNode;
+
+fn main() {
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: i32 = 1200;
     const SAMPLES_PER_PIXEL: i32 = 500;
@@ -40,14 +44,14 @@ fn main() {
     colog::init();
 
     // World setup
-    let mut hittables = Vec::new();
+    let mut hittables: Vec<Arc<dyn RayIntersection>> = Vec::new();
 
     let ground_material = Arc::new(Material::from(Lambertian::new(Color::new(0.5, 0.5, 0.5))));
-    hittables.push(Hittable::Sphere(Sphere::new(
+    hittables.push(Arc::new(Hittable::Sphere(Sphere::new(
         &Point3::new(0.0, -1000.0, 0.0),
         1000.0,
         &ground_material,
-    )));
+    ))));
 
     let mut rng = rng();
 
@@ -88,7 +92,7 @@ fn main() {
                     }
                 };
 
-                hittables.push(Hittable::from(sphere));
+                hittables.push(Arc::new(Hittable::from(sphere)));
             }
         }
     }
@@ -97,23 +101,24 @@ fn main() {
     let material2 = Arc::new(Material::from(Lambertian::new(Color::new(0.4, 0.2, 0.1))));
     let material3 = Arc::new(Material::from(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0)));
 
-    hittables.push(Hittable::from(Sphere::new(
+    hittables.push(Arc::new(Hittable::from(Sphere::new(
         &Point3::new(0.0, 1.0, 0.0),
         1.0,
         &material1,
-    )));
-    hittables.push(Hittable::from(Sphere::new(
+    ))));
+    hittables.push(Arc::new(Hittable::from(Sphere::new(
         &Point3::new(-4.0, 1.0, 0.0),
         1.0,
         &material2,
-    )));
-    hittables.push(Hittable::from(Sphere::new(
+    ))));
+    hittables.push(Arc::new(Hittable::from(Sphere::new(
         &Point3::new(4.0, 1.0, 0.0),
         1.0,
         &material3,
-    )));
+    ))));
 
-    let world = HittableCollection::from(hittables.as_slice());
+    let mut world = HittableCollection::default();
+    world.add(Arc::new(BvhNode::from(&mut hittables)));
 
     let camera = CameraBuilder::default()
         .aspect_ratio(ASPECT_RATIO)
