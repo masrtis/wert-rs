@@ -1,21 +1,22 @@
 use crate::{
-    hittable::{HitRecord, Hittable, RayIntersection},
+    aabb::AxisAlignedBoundingBox,
+    hittable::{HitRecord, RayIntersection},
     interval::Interval,
     ray::Ray,
 };
 
-#[derive(Clone, Debug, Default)]
-pub struct HittableCollection(Vec<Hittable>);
+use std::sync::Arc;
 
-impl From<&[Hittable]> for HittableCollection {
-    fn from(hittables: &[Hittable]) -> Self {
-        Self(hittables.to_vec())
-    }
+#[derive(Clone, Debug, Default)]
+pub struct HittableCollection {
+    objects: Vec<Arc<dyn RayIntersection>>,
+    bbox: AxisAlignedBoundingBox,
 }
 
-impl From<&Hittable> for HittableCollection {
-    fn from(h: &Hittable) -> Self {
-        Self(vec![h.clone()])
+impl HittableCollection {
+    pub fn add(&mut self, object: Arc<dyn RayIntersection>) {
+        self.bbox = AxisAlignedBoundingBox::merge_boxes(&self.bbox, &object.bounding_box());
+        self.objects.push(object);
     }
 }
 
@@ -25,7 +26,7 @@ impl RayIntersection for HittableCollection {
         let mut found_hit = false;
         let mut closest_so_far = ray_t.max;
 
-        for object in &self.0 {
+        for object in &self.objects {
             if object.hit(
                 r,
                 Interval::new(ray_t.min, closest_so_far),
@@ -38,5 +39,9 @@ impl RayIntersection for HittableCollection {
         }
 
         found_hit
+    }
+
+    fn bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.bbox
     }
 }
