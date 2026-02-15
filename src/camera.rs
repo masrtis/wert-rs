@@ -9,7 +9,7 @@ use crate::{
     vec3::{Point3, Vec3, random_in_unit_disk},
 };
 use log::info;
-use rand::Rng;
+use rand::RngExt;
 use rayon::prelude::*;
 use std::{
     sync::{

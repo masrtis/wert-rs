@@ -21,7 +21,7 @@ fn main() {
     use hittable::{Hittable, Sphere};
     use hittable_collection::HittableCollection;
     use material::{Dielectric, Lambertian, Material, Metal};
-    use rand::{Rng, rng};
+    use rand::{RngExt, rng};
     use std::sync::Arc;
     use vec3::{Point3, Vec3};
 

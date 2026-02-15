@@ -1,6 +1,6 @@
 use crate::{color::Color, hittable::HitRecord, ray::Ray, vec3::random_unit_vector};
 use enum_dispatch::enum_dispatch;
-use rand::Rng;
+use rand::RngExt;
 
 #[enum_dispatch(Material)]
 pub trait Scatter {
