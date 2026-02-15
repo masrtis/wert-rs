@@ -1,5 +1,5 @@
 use rand::{
-    Rng,
+    RngExt,
     distr::{
         Distribution, StandardUniform, Uniform,
         uniform::{
@@ -376,7 +376,7 @@ impl std::fmt::Display for Vec3 {
 }
 
 impl Distribution<Vec3> for StandardUniform {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Vec3 {
+    fn sample<R: RngExt + ?Sized>(&self, rng: &mut R) -> Vec3 {
         let distribution = Uniform::new(0.0, 1.0).unwrap();
 
         Vec3::new(
@@ -424,7 +424,7 @@ impl UniformSampler for UniformVec3Sampler {
         })
     }
 
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {
+    fn sample<R: RngExt + ?Sized>(&self, rng: &mut R) -> Self::X {
         Vec3::new(self.x.sample(rng), self.y.sample(rng), self.z.sample(rng))
     }
 }
