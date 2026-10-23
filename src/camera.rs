@@ -240,7 +240,7 @@ fn ray_color(r: &Ray, depth: u32, world: &impl RayIntersection) -> Color {
     }
 
     let unit_direction = r.dir().unit_vector();
-    let a = 0.5 * (unit_direction.y() + 1.0);
+    let a = f64::midpoint(unit_direction.y(), 1.0);
     (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
 }
 
